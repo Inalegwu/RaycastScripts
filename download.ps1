@@ -2,22 +2,51 @@
 
 # Required parameters:
 # @raycast.schemaVersion 1
-# @raycast.title Download Best Video + Audio
-# @raycast.mode silent
-# @raycast.packageName Video Tools
+# @raycast.title Download Best Video (Smart)
+# @raycast.mode fullOutput
 
 # Optional parameters:
 # @raycast.icon 📺
-# @raycast.argument1 { "type": "text", "placeholder": "Paste video URL here" }
+# @raycast.packageName Media Tools
+# @raycast.argument1 { "type": "text", "placeholder": "URL (Leave blank to use clipboard)", "optional": true }
 
-# Documentation:
-# @raycast.author DisgruntledDev
-# @raycast.description Downloads the absolute best video and audio quality using yt-dlp on Windows.
+# Force stdout to flush immediately for real-time tracking in Raycast
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
-$url = $args[0]
-$downloadFolder = "$env:USERPROFILE\Downloads"
+$env:PATH += ";$env:USERPROFILE\.deno\bin"
 
-# Open cmd.exe to run yt-dlp, show progress, and close automatically when done
-Start-Process cmd.exe -ArgumentList "/c cd /d `"$downloadFolder`" && yt-dlp -f `"bestvideo+bestaudio/best`" --merge-output-format mkv `"$url`""
+# Prioritize the Raycast input field argument, fallback to clipboard
+if ($args) {
+    $url = $args
+} else {
+    $url = Get-Clipboard -Raw
+}
 
-Write-Output "Downloading to your Downloads folder..."
+# Trim whitespace
+if ($url) { $url = $url.Trim() }
+
+# If both are empty or invalid, fail and instruct the user
+if (-not $url -or $url -notmatch "^https?://") {
+    Write-Output "Error: Clipboard empty. Please paste a URL in the text box."
+    Exit 1
+}
+
+# Set download directory to your Windows Downloads folder
+$downloadsFolder = "$env:USERPROFILE\Downloads"
+Set-Location $downloadsFolder
+
+Write-Output "Initializing dlp download..."
+Write-Output "Saving to: $downloadsFolder"
+Write-Output "----------------------------------------"
+
+# Call your custom binary name
+& dlp $url
+
+# Check if the download succeeded
+if ($LASTEXITCODE -eq 0) {
+    Write-Output "----------------------------------------"
+    Write-Output "Download complete! 🎉"
+} else {
+    Write-Output "----------------------------------------"
+    Write-Output "Download failed. Check the URL or connection."
+}
